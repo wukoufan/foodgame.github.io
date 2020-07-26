@@ -4,7 +4,9 @@ $(function () {
         success: function (json) {
             init(json);
         },
-        url: 'data/data.min.json'
+        //url: 'data/data.min.json'
+        // temporarily change to a url on server
+        url: 'https://raw.githubusercontent.com/foodgame/foodgame.github.io/master/data/data.min.json'
     });
 });
 
