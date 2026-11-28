@@ -11,34 +11,65 @@
     <script type="text/javascript" src="js/common.min.js?v=73"></script>
     <link rel="stylesheet" type="text/css" href="css/food.min.css?v=71" />
     <script type="text/javascript" src="js/food.min.js?v=225"></script>
-    <link rel="stylesheet" type="text/css" href="css/image.css?v=172" />
+    <link rel="stylesheet" type="text/css" href="css/image.css?v=173" />
     <script>
         $(function () {
-            $.ajax({
-                cache: true,
-                xhr: function () {
-                    var xhr = $.ajaxSettings.xhr();
-                    xhr.addEventListener("progress", function (e) {
-                        var total = 1730387;
-                        if (e.lengthComputable) {
-                            total = e.total;
-                        }
-                        var percent = Math.min(100, Math.floor((e.loaded / total) * 100));
-                        $("#loading-progress").html(percent + "%");
-                    }, false);
-                    return xhr;
-                },
-                success: function (json) {
-                    init(json);
-                },
-                error: function () {
-                    $(".loading-text h1").html("加载失败，请刷新重试");
-                },
-                complete: function () {
-                    $("#loading-progress").remove();
-                },
-                url: 'data/data.min.json?v=203'
-            });
+            var onlineBase = 'https://h5.baochaojianghu.com/';
+            var localUrl = 'data/data.min.json?v=203';
+
+            function loadData(online) {
+                $.ajax({
+                    url: online ? onlineBase + 'data/data.min.json' : localUrl,
+                    dataType: 'json',
+                    cache: !online,
+                    timeout: online ? 15000 : 0,
+                    xhr: function () {
+                        var xhr = $.ajaxSettings.xhr();
+                        xhr.addEventListener('progress', function (event) {
+                            if (event.lengthComputable && event.total > 0) {
+                                var percent = Math.min(100, Math.floor(event.loaded / event.total * 100));
+                                $('#loading-progress').text(percent + '%');
+                            }
+                        });
+                        return xhr;
+                    }
+                }).done(function (data) {
+                    var tables = ['recipes', 'chefs', 'skills', 'materials', 'combos', 'guests',
+                        'invitationGuests', 'equips', 'decorations', 'quests', 'disks', 'ambers',
+                        'maps', 'condiments', 'buffs', 'intents', 'rules', 'activities', 'history'];
+                    if (!data || !tables.every(function (key) { return Array.isArray(data[key]); }) ||
+                            !data.recipes.length || !data.chefs.length) {
+                        loadFailed();
+                        return;
+                    }
+                    if (online) {
+                        // 现有技能解析器可直接接受整组 ID，同时保留多技能的说明和效果。
+                        data.chefs.forEach(function (chef) {
+                            if (Array.isArray(chef.ultimateSkillList)) {
+                                chef.ultimateSkill = chef.ultimateSkillList;
+                            }
+                        });
+                        $('<link>', { rel: 'stylesheet', href: onlineBase + 'css/image.css' }).appendTo('head');
+                    } else {
+                        $('#backup-data-notice').removeClass('hidden');
+                    }
+                    $('#loading-progress').remove();
+                    init(data);
+                }).fail(loadFailed);
+
+                function loadFailed() {
+                    if (online) {
+                        $('.loading-text h1').text('正在读取备用图鉴…');
+                        $('#loading-progress').empty();
+                        loadData(false);
+                    } else {
+                        $('.loading-text h1').text('加载失败，请刷新重试');
+                        $('#loading-progress').remove();
+                    }
+                }
+            }
+
+            loadData(true);
         });
     </script>
 </head>
@@ -50,6 +81,10 @@
     </div>
 
     <div class="loading loading-bg"></div>
+
+    <div id="backup-data-notice" class="alert alert-warning hidden" role="status">
+        在线数据暂不可用，当前显示本站的备用图鉴。
+    </div>
 
     <div class="alert alert-warning alert-dismissible alert-version hidden" data-id="alert0" data-version="1"
         data-show="false">
